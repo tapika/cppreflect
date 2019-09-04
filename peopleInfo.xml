@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<People groupName="Group1">
+  <people>
+    <Person name="Roger" gender="male" age="37" isAdult="true" />
+    <Person name="Alice" gender="female" age="27" isAdult="true" />
+    <Person name="Cindy" gender="female" age="17" isAdult="false" />
+  </people>
+</People>
