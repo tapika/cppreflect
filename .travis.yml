@@ -4,18 +4,10 @@ matrix:
   include:
     - os: linux
     - os: windows
-      env:
-        - MATRIX_EVAL='choco install visualstudio2019community visualstudio2019-workload-nativedesktop && VS160COMNTOOLS="C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools"'
-
-before_install:
-  - eval "${MATRIX_EVAL}" || true
-
-before_script:
-  - echo "$VS160COMNTOOLS"
 
 script:
   - if [ "$TRAVIS_OS_NAME" = "windows" ]; then 
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat" -host_arch=amd64 -arch=amd64
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\Tools\VsDevCmd.bat" -host_arch=amd64 -arch=amd64
     ; fi
   - if [ "$TRAVIS_OS_NAME" = "windows" ]; 
     then cd ; 
