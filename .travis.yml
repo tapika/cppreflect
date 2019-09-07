@@ -10,5 +10,5 @@ script:
 
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then
         mkdir -p build && cd build;
-        cmake -DCMAKE_GENERATOR_PLATFORM=x64 .. && make;
+        cmake .. && make;
     fi
