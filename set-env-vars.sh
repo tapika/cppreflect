@@ -5,7 +5,7 @@ else
         DEPLOY_FILE=$TRAVIS_BUILD_DIR/test_cppreflect
 fi
 
-export TRAVIS_TAG=cppreflect_1_0
+export TRAVIS_TAG=1.0
 
 echo ---------------------------------------------------------------------------
 echo DEPLOY_FILE: $DEPLOY_FILE

@@ -12,6 +12,8 @@ install:
 - source set-env-vars.sh
 deploy:
   provider: releases
+  skip_cleanup: true
+  overwrite:    true
   api_key:
     secure: Z1zngqESTpxiLGS+oW/L3fgmsOqpLiVDuklQqZ2mpEazCIbcinxL67batcrkA6snVQpA3WYysCwCQu9EqWphhv2iuIrWzp8pUp4y4mL6EFBeQup7K4rrAyaQThco7sZ2GIAFlYTfsmxCdFYpi9wNN8WquLjdF6bPQWCOWBqJCYZ5NYuK5GanM4VQQ/q/azDDY3h26g/mbxI5frzWS+JwnJWY28IZNlhYwp/iQlivuF0y2xjv7xziETU+CF6XFxu17P+0EurfsdpZ7Dl8fAEAyHaC0Ujwya9XUXkSYyays4xBjIxgEoHvlj5hQG4IPMvzJFP76BKG1NtQ8g/hBicYYnIS0Ylmu/h+terB97mLcAkutIC8LMtYvxZxF5MCFneI9SZh73Ghj8cKhFUxWGG1b24Dqa50KW7bnYXiQFX96XExpoha/NixgN6ujzIeEMtRjTylq/lmmyhENtDD5uZj3HvHuQka74hal+ArVMaRVqSfkfeIr+xD35pARxJqpyZUUrQ9u9V/hd5GO+Td47RxY4SGcb47jT82M5mDQRAP8SSpq5tCSjD18LI2BpByLLUTH+wW7wRIAU9YnQ1Ur3w24rOZh4qwU+u1Am3YCJarpvcjfz8Y6aBc86ffxXh7Qcv5XASNvENSUSPqkD+bpeSEXLY7v6E+qyjW7aNWxlhzSKI=
   file: "$DEPLOY_FILE"
