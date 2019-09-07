@@ -6,10 +6,9 @@ matrix:
     - os: windows
 
 script:
-  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then 
-        ./build.bat
-    ;else
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then ./build.bat; fi
+
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then
         mkdir -p build && cd build;
-        cmake -DCMAKE_GENERATOR_PLATFORM=x64 ..;
-        make
+        cmake -DCMAKE_GENERATOR_PLATFORM=x64 .. && make;
     fi

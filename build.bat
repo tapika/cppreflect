@@ -9,5 +9,6 @@ if %VisualStudioVersion%. == . call "%VSPATH%\Common7\Tools\VsDevCmd.bat" -host_
 if not exist build mkdir build 
 pushd build
 cmake -DCMAKE_GENERATOR_PLATFORM=x64 ..
+if errorlevel 1 exit /b 1
 devenv cppreflect.sln /build "Release|x64"
 popd
