@@ -8,7 +8,7 @@ matrix:
         - MATRIX_EVAL='choco install visualstudio2019community visualstudio2019-workload-nativedesktop && VS160COMNTOOLS="C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools"'
 
 before_install:
-  - eval "${MATRIX_EVAL}"
+  - eval "${MATRIX_EVAL}" || true
 
 before_script:
   - echo "$VS160COMNTOOLS"
