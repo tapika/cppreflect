@@ -13,3 +13,11 @@ script:
         mkdir -p build && cd build;
         cmake .. && make;
     fi
+
+install:
+    - source set-env-vars.sh
+
+deploy:
+    provider:     releases
+    skip_cleanup: true
+    file: $DEPLOY_FILE
