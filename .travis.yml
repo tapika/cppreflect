@@ -14,7 +14,12 @@ before_script:
   - echo "$VS160COMNTOOLS"
 
 script:
-  - cd
-  - echo "$TRAVIS_BUILD_DIR"
-  - dir
-
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; 
+    then cd ; 
+    else pwd ;
+    fi
+  - cd "$TRAVIS_BUILD_DIR"
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; 
+    then dir ; 
+    else ls ;
+    fi
