@@ -7,19 +7,8 @@ matrix:
 
 script:
   - if [ "$TRAVIS_OS_NAME" = "windows" ]; then 
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\Tools\VsDevCmd.bat" -host_arch=amd64 -arch=amd64
-    ; fi
-  - if [ "$TRAVIS_OS_NAME" = "windows" ]; 
-    then cd ; 
-    else pwd ;
+        ./build.bat
+    ;else
+        mkdir -p build && cd build;
+        pwd; 
     fi
-  - cd "$TRAVIS_BUILD_DIR"
-  - if [ "$TRAVIS_OS_NAME" = "windows" ]; 
-    then dir ; 
-    else ls ;
-    fi
-  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then 
-        where cmake
-    ; else
-        which cmake
-    ; fi

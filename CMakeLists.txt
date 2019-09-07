@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
+project(cppreflect)
+
 add_executable(test_cppreflect 
     pugixml/pugiconfig.hpp
     pugixml/pugixml.cpp
