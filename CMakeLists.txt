@@ -25,8 +25,6 @@ if(NOT WIN32)
     #target_compile_options(test_cppreflect PRIVATE -E)
 endif()
 
-if(NOT DEFINED ENV{TRAVIS})
-    set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 
