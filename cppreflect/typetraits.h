@@ -121,6 +121,11 @@ public:
     {
         return sizeof(T);
     }
+
+    virtual size_t GetSizeOfType()
+    {
+        return sizeof(T);
+    }
 };
 
 template <>
@@ -157,6 +162,11 @@ public:
     virtual size_t GetFixedSize()
     {
         return 0;
+    }
+
+    virtual size_t GetSizeOfType()
+    {
+        return sizeof(std::wstring);
     }
 };
 
@@ -197,6 +207,11 @@ public:
     {
         return 0;
     }
+
+    virtual size_t GetSizeOfType()
+    {
+        return sizeof(std::string);
+    }
 };
 
 
@@ -230,6 +245,11 @@ public:
     }
 
     virtual size_t GetFixedSize()
+    {
+        return sizeof(int);
+    }
+
+    virtual size_t GetSizeOfType()
     {
         return sizeof(int);
     }
@@ -267,6 +287,11 @@ public:
     }
 
     virtual size_t GetFixedSize()
+    {
+        return sizeof(T);
+    }
+
+    virtual size_t GetSizeOfType()
     {
         return sizeof(T);
     }
@@ -310,6 +335,11 @@ public:
     {
         return sizeof(bool);
     }
+
+    virtual size_t GetSizeOfType()
+    {
+        return sizeof(bool);
+    }
 };
 
 // Just an example how primitive data types could be redefined. Serialize bool as "True/False" instead of "true/false".
@@ -339,6 +369,11 @@ public:
     }
 
     virtual size_t GetFixedSize()
+    {
+        return sizeof(CamelCaseBool);
+    }
+
+    virtual size_t GetSizeOfType()
     {
         return sizeof(CamelCaseBool);
     }
@@ -426,6 +461,11 @@ public:
     virtual size_t GetFixedSize()
     {
         return 0;
+    }
+
+    virtual size_t GetSizeOfType()
+    {
+        return sizeof( std::vector<E> );
     }
 };
 

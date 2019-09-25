@@ -279,7 +279,8 @@ void NodeToBinaryData(char*& buf, int* len, void* pclass, BasicTypeInfo& type)
         return;
     }
 
-    for (FieldInfo& fi : clstype->fields) {
+    for (FieldInfo& fi : clstype->fields)
+    {
 
         void* p = ((char*)pclass) + fi.offset;
         BasicTypeInfo& fieldType = *fi.fieldType;
@@ -356,11 +357,39 @@ bool BinaryDataToNode(char*& buf, int* left, void* pclass, BasicTypeInfo& type)
 
             fieldType.SetArraySize(p, arrSize);
 
-            for (size_t i = 0; i < arrSize; i++) {
-                void* pstr2 = fi.fieldType->ArrayElement(p, i);
+            char* pstr2;
+            size_t elemSize = 0;
 
+            if (arrSize != 0)
+            {
+                pstr2 = (char*)fieldType.ArrayElement(p, 0);
+                elemSize = arrayType->GetSizeOfType();
+            }
+
+            // Primitive flat type, can be just copied.
+            if (arrayType->GetFixedSize() != 0 && dynamic_cast<ClassTypeInfo*>(arrayType) == nullptr)
+            {
+                size_t copySize = arrSize * elemSize;
+                if (*left < (int)copySize)
+                    return false;
+
+                if (buf)
+                {
+                    memcpy(pstr2, buf, copySize);
+                    buf += copySize;
+                }
+
+                *left -= (int)copySize;
+                continue;
+            }
+
+            // Complex type, requires for loop
+            for (size_t i = 0; i < arrSize; i++)
+            {
                 if (!BinaryDataToNode(buf, left, pstr2, *arrayType))
                     return false;
+
+                pstr2 += elemSize;
             }
 
         } // for each

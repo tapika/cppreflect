@@ -125,6 +125,11 @@ public:
     // Returns sizeof(type) if type is fixed size, 0 otherwise
     //
     virtual size_t GetFixedSize() = 0;
+
+    //
+    // Gets sizeof(type)
+    //
+    virtual size_t GetSizeOfType() = 0;
 };
 
 class ClassTypeInfo : public BasicTypeInfo
@@ -175,6 +180,11 @@ class ClassTypeInfoT : public ClassTypeInfo
     }
 
     virtual size_t GetFixedSize()
+    {
+        return sizeof(T);
+    }
+
+    virtual size_t GetSizeOfType()
     {
         return sizeof(T);
     }
@@ -388,6 +398,11 @@ public:
     }
 
     virtual size_t GetFixedSize()
+    {
+        return sizeof(T);
+    }
+
+    virtual size_t GetSizeOfType()
     {
         return sizeof(T);
     }
