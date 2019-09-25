@@ -146,7 +146,7 @@ public:
 
     virtual void* GetRawPtr(void* pField)
     {
-        return &((std::wstring*)pField)->at(0);
+        return (wchar_t*)((std::wstring*)pField)->data();
     }
 
     virtual size_t GetRawSize(void* pField)
@@ -190,7 +190,7 @@ public:
 
     virtual void* GetRawPtr(void* pField)
     {
-        return &((std::string*)pField)->at(0);
+        return (char*)((std::string*)pField)->data();
     }
 
     virtual size_t GetRawSize(void* pField)

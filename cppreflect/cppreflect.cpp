@@ -296,7 +296,7 @@ void NodeToBinaryData(char*& buf, int* len, void* pclass, BasicTypeInfo& type)
         lengthToBinaryData(buf, len, size);
 
         char* pstr2;
-        size_t elemSize;
+        size_t elemSize = 0;
 
         if (size != 0)
         {
@@ -308,7 +308,7 @@ void NodeToBinaryData(char*& buf, int* len, void* pclass, BasicTypeInfo& type)
         if (arrayType->GetFixedSize() != 0 && dynamic_cast<ClassTypeInfo*>(arrayType) == nullptr)
         {
             size_t copySize = size * elemSize;
-            if (buf)
+            if (buf && copySize)
             {
                 memcpy(buf, pstr2, copySize);
                 buf += copySize;
@@ -399,7 +399,7 @@ bool BinaryDataToNode(char*& buf, int* left, void* pclass, BasicTypeInfo& type)
                 if (*left < (int)copySize)
                     return false;
 
-                if (buf)
+                if (buf && copySize)
                 {
                     memcpy(pstr2, buf, copySize);
                     buf += copySize;
