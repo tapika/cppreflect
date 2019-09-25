@@ -207,7 +207,7 @@ public:
 #define PUSH_FIELD_INFO(x)                                      \
     fi.SetName( ARGNAME_AS_STRING(x) );                         \
     fi.offset = offsetof(_className, ARGNAME(x));               \
-    fi.fieldType.reset(new BasicTypeInfoT< ARGTYPE(x) >());        \
+    fi.fieldType.reset(new BasicTypeInfoT< ARGTYPE(x) >());     \
     t.fields.push_back(fi);                                     \
 
 /*
@@ -232,9 +232,9 @@ fieldType <> fieldName otherwise intellisense might not work.
     /* typedef is accessable from PUSH_FIELD_INFO define */     \
     typedef className _className;                               \
                                                                 \
-    static ClassTypeInfo& GetType()                               \
+    static ClassTypeInfo& GetType()                             \
     {                                                           \
-        static ClassTypeInfoT<className> t;                       \
+        static ClassTypeInfoT<className> t;                     \
         if( t.name.length() ) return t;                         \
         t.name = classTypeNameInfo.ClassTypeName;               \
         FieldInfo fi;                                           \
