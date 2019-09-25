@@ -481,7 +481,7 @@ ReflectClass::ReflectClass():
 {
 }
 
-void ReflectClass::ReflectConnectChildren(ReflectClass* parent)
+void ReflectClass::ReflectConnectChildren(ReflectClass*)
 {
     ClassTypeInfo& typeinfo = GetInstType();
     char* inst = nullptr;
