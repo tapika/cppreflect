@@ -198,7 +198,8 @@ class FieldInfo
 public:
     std::string name;
     FieldInfo() : 
-        serializeAsAttribute(true)                  // Consumes less disk space.
+        serializeAsAttribute(true),                 // Consumes less disk space.
+        arrayElementType(nullptr)
     {
     }
 
@@ -208,16 +209,34 @@ public:
         name = fieldName;
     }
 
+    template <class T>
+    void ResolveType()
+    {
+        ClassTypeInfo* tinfo = nullptr;
+        // If it's complex class type, return it
+        CallToGetType<T>(tinfo);
+        if (tinfo)
+            fieldType = std::shared_ptr<BasicTypeInfo>(dynamic_cast<BasicTypeInfo*>(tinfo), [](BasicTypeInfo*) {}) ;
+
+        if (fieldType == nullptr)
+            fieldType.reset(new BasicTypeInfoT<T>());
+
+        if (!fieldType->GetArrayElementType(arrayElementType))
+            arrayElementType = nullptr;
+    }
+
     int offset;                                     // Field offset within a class instance
     bool serializeAsAttribute;                      // true to serialize as attribute, false as element
     std::shared_ptr<BasicTypeInfo> fieldType;       // Class for field conversion to string / back from string. We must use 'new' otherwise virtual table does not gets initialized.
+    BasicTypeInfo* arrayElementType;                // Type of single array element if it's vector<> or analogue container
 };
 
 
 #define PUSH_FIELD_INFO(x)                                      \
+    fi = FieldInfo();                                           \
     fi.SetName( ARGNAME_AS_STRING(x) );                         \
     fi.offset = offsetof(_className, ARGNAME(x));               \
-    fi.fieldType.reset(new BasicTypeInfoT< ARGTYPE(x) >());     \
+    fi.ResolveType< ARGTYPE(x) >();                             \
     t.fields.push_back(fi);                                     \
 
 /*

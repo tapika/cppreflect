@@ -284,9 +284,10 @@ void NodeToBinaryData(char*& buf, int* len, void* pclass, BasicTypeInfo& type)
 
         void* p = ((char*)pclass) + fi.offset;
         BasicTypeInfo& fieldType = *fi.fieldType;
-        BasicTypeInfo* arrayType = nullptr;
+        BasicTypeInfo* arrayType = fi.arrayElementType;
 
-        if (!fieldType.GetArrayElementType(arrayType)) {
+        if (!arrayType)
+        {
             NodeToBinaryData(buf, len, p, fieldType);
             continue;
         }
@@ -294,9 +295,19 @@ void NodeToBinaryData(char*& buf, int* len, void* pclass, BasicTypeInfo& type)
         size_t size = fieldType.ArraySize(p);
         lengthToBinaryData(buf, len, size);
 
-        for (size_t i = 0; i < size; i++) {
-            void* pstr2 = fi.fieldType->ArrayElement(p, i);
+        char* pstr2;
+        size_t elemSize;
+
+        if (size != 0)
+        {
+            pstr2 = (char*)fieldType.ArrayElement(p, 0);
+            elemSize = arrayType->GetSizeOfType();
+        }
+
+        for (size_t i = 0; i < size; i++)
+        {
             NodeToBinaryData(buf, len, pstr2, *arrayType);
+            pstr2 += elemSize;
         }
     } // for each
 }
@@ -336,11 +347,11 @@ bool BinaryDataToNode(char*& buf, int* left, void* pclass, BasicTypeInfo& type)
         for (FieldInfo& fi : clstype->fields) {
 
             void* p = ((char*)pclass) + fi.offset;
-            BasicTypeInfo* arrayType = nullptr;
             BasicTypeInfo& fieldType = *fi.fieldType;
+            BasicTypeInfo* arrayType = fi.arrayElementType;
 
-            if (!fieldType.GetArrayElementType(arrayType)) {
-
+            if (!arrayType)
+            {
                 if (!BinaryDataToNode(buf, left, p, fieldType))
                     return false;
 
@@ -539,7 +550,7 @@ void ReflectClass::ReflectConnectChildren(ReflectClass*)
 
         if (child->propertyName.length() == 0)
         {
-            for (auto fi : child->GetInstType().fields)
+            for (auto& fi : child->GetInstType().fields)
                 mapFieldToIndex[fi.name] = idx++;
         }
 
