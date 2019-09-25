@@ -200,7 +200,7 @@ public:
 
     int offset;                                     // Field offset within a class instance
     bool serializeAsAttribute;                      // true to serialize as attribute, false as element
-    std::shared_ptr<BasicTypeInfo> fieldType;          // Class for field conversion to string / back from string. We must use 'new' otherwise virtual table does not gets initialized.
+    std::shared_ptr<BasicTypeInfo> fieldType;       // Class for field conversion to string / back from string. We must use 'new' otherwise virtual table does not gets initialized.
 };
 
 
