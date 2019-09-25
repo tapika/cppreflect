@@ -304,6 +304,21 @@ void NodeToBinaryData(char*& buf, int* len, void* pclass, BasicTypeInfo& type)
             elemSize = arrayType->GetSizeOfType();
         }
 
+        // Primitive flat type, can be just copied.
+        if (arrayType->GetFixedSize() != 0 && dynamic_cast<ClassTypeInfo*>(arrayType) == nullptr)
+        {
+            size_t copySize = size * elemSize;
+            if (buf)
+            {
+                memcpy(buf, pstr2, copySize);
+                buf += copySize;
+            }
+            
+            *len += (int)copySize;
+            continue;
+        }
+
+        // Complex type, requires for loop
         for (size_t i = 0; i < size; i++)
         {
             NodeToBinaryData(buf, len, pstr2, *arrayType);
