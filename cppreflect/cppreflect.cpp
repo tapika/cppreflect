@@ -6,10 +6,8 @@
 using namespace pugi;
 using namespace std;
 
-std::map< std::string, pfuncGetClassInfo > CppTypeInfo::classNameToClassInfo;
 
-
-FieldInfo* CppTypeInfo::GetField(const char* name)
+FieldInfo* ClassTypeInfo::GetField(const char* name)
 {
     for( auto& f: fields )
         if(f.name == name)
@@ -18,7 +16,7 @@ FieldInfo* CppTypeInfo::GetField(const char* name)
     return nullptr;
 }
 
-int CppTypeInfo::GetFieldIndex(const char* name)
+int ClassTypeInfo::GetFieldIndex(const char* name)
 {
     for( size_t i = 0; i < fields.size(); i++ )
         if (fields[i].name == name )
@@ -27,16 +25,15 @@ int CppTypeInfo::GetFieldIndex(const char* name)
     return -1;
 }
 
-ReflectClassTypeNameInfo::ReflectClassTypeNameInfo(pfuncGetClassInfo func, const std::string& className)
+ReflectClassTypeNameInfo::ReflectClassTypeNameInfo(pfuncGetClassInfo, const std::string& className)
 {
     ClassTypeName = className;
-    CppTypeInfo::classNameToClassInfo[className] = func;
 }
 
 //
 //  Serializes class instance to xml node.
 //
-bool DataToNode( xml_node& _node, void* pclass, bool appendTypeName, CppTypeInfo& type )
+bool DataToNode( xml_node& _node, void* pclass, bool appendTypeName, ClassTypeInfo& type )
 {
     xml_node node;
     
@@ -45,52 +42,63 @@ bool DataToNode( xml_node& _node, void* pclass, bool appendTypeName, CppTypeInfo
     else
         node = _node;
 
-    for (FieldInfo fi : type.fields)
+    for (FieldInfo& fi : type.fields)
     {
         void* p = ((char*)pclass) + fi.offset;
-        CppTypeInfo* arrayType = nullptr;
+        BasicTypeInfo* arrayType;
+        BasicTypeInfo& fieldType = *fi.fieldType;
 
-        if( !fi.fieldType->GetArrayElementType( arrayType ) )
+        if (!fieldType.GetArrayElementType(arrayType))
         {
             // Primitive data type (string, int, bool)
-            if (fi.fieldType->IsPrimitiveType())
+            if (fieldType.IsPrimitiveType())
             {
                 // Simple type, append as attribute.
-                auto s = fi.fieldType->ToString(p);
-                if (!s.length())     // Don't serialize empty values.
+                auto s = fieldType.ToString(p);
+                if (!s.length()) // Don't serialize empty values.
                     continue;
-                
+
                 wstring fi_name = as_wide(fi.name);
                 if (fi.serializeAsAttribute)
                     node.append_attribute(fi_name.c_str()) = s.c_str();
                 else
                     node.append_child(fi_name.c_str()).append_child(pugi::node_pcdata).set_value(s.c_str());
-            }
-            else
-            {
+            } else {
                 // Complex class type, append as xml.
                 xml_node fieldNode = node.append_child(as_wide(fi.name).c_str());
-                DataToNode(fieldNode, p, false, *fi.fieldType->GetFieldType());
+                DataToNode(fieldNode, p, false, *((ClassTypeInfo*)fieldType.GetClassType()));
             }
             continue;
         }
 
-        if( !arrayType )
+        if (!arrayType)
             continue;
 
-        size_t size = fi.fieldType->ArraySize(p);
+        size_t size = fieldType.ArraySize(p);
         // Don't create empty arrays
         if (size == 0)
             continue;
 
-        xml_node fieldNode = node.append_child(as_wide( fi.name ).c_str() );
+        xml_node fieldNode = node.append_child(as_wide(fi.name).c_str());
+        ClassTypeInfo* classType = dynamic_cast<ClassTypeInfo*>(arrayType);
+        wstring xmlNodeName;
+        if (!classType)
+            xmlNodeName = as_wide(arrayType->name());
 
-        for( size_t i = 0; i < size; i++ )
+        for (size_t i = 0; i < size; i++)
         {
-            void* pstr2 = fi.fieldType->ArrayElement( p, i );
-            DataToNode( fieldNode, pstr2, true, *arrayType );
+            void* pstr2 = fieldType.ArrayElement(p, i);
+            if (classType)
+            {
+                DataToNode(fieldNode, pstr2, true, *classType);
+            }
+            else
+            {
+                auto s = arrayType->ToString(pstr2);
+                fieldNode.append_child(xmlNodeName.c_str()).append_child(pugi::node_pcdata).set_value(s.c_str());
+            }
         }
-    } //for each
+    } // for each
 
     return true;
 }
@@ -105,7 +113,7 @@ struct xml_string_writer : xml_writer
     }
 };
 
-string ToXML_UTF8( void* pclass, CppTypeInfo& type )
+string ToXML_UTF8( void* pclass, ClassTypeInfo& type )
 {
     xml_document doc;
     xml_node decl = doc.prepend_child( pugi::node_declaration );
@@ -118,7 +126,7 @@ string ToXML_UTF8( void* pclass, CppTypeInfo& type )
     return writer.result;
 }
 
-wstring ToXML( void* pclass, CppTypeInfo& type )
+wstring ToXML( void* pclass, ClassTypeInfo& type )
 {
     xml_document doc;
     xml_node decl = doc.prepend_child( pugi::node_declaration );
@@ -136,7 +144,7 @@ wstring ToXML( void* pclass, CppTypeInfo& type )
 //  Deserializes xml to class structure, returns true if succeeded, false if fails.
 //  error holds error information if any.
 //
-bool NodeToData( xml_node node, void* pclass, CppTypeInfo& type, bool typeCheck, wstring& error )
+bool NodeToData( xml_node node, void* pclass, ClassTypeInfo& type, bool typeCheck, wstring& error )
 {
     string name = as_utf8(node.name());
 
@@ -150,12 +158,13 @@ bool NodeToData( xml_node node, void* pclass, CppTypeInfo& type, bool typeCheck,
         return false;
     }
 
-    for (FieldInfo fi: type.fields)
+    for (FieldInfo& fi : type.fields)
     {
         void* p = ((char*)pclass) + fi.offset;
-        CppTypeInfo* arrayType = nullptr;
+        BasicTypeInfo* arrayType;
+        BasicTypeInfo& fieldType = *fi.fieldType;
 
-        if( !fi.fieldType->GetArrayElementType( arrayType ) )
+        if (!fieldType.GetArrayElementType(arrayType))
         {
             // Primitive data type (string, int, bool)
             if (fi.fieldType->IsPrimitiveType())
@@ -169,46 +178,225 @@ bool NodeToData( xml_node node, void* pclass, CppTypeInfo& type, bool typeCheck,
                     v = node.child(fi_name.c_str()).child_value();
 
                 fi.fieldType->FromString(p, v);
-            }
-            else
-            {
+            } else {
                 // Complex class
                 xml_node fieldNode = node.child(as_wide(fi.name).c_str());
                 if (fieldNode.empty())
                     continue;
 
-                if (!NodeToData(fieldNode, p, *fi.fieldType->GetFieldType(), false, error))
+                if (!NodeToData(fieldNode, p, *((ClassTypeInfo*)fi.fieldType->GetClassType()), false, error))
                     return false;
             }
             continue;
         }
 
-        if( !arrayType )
+        if (!arrayType)
             continue;
 
-        xml_node fieldNode = node.child( as_wide( fi.name ).c_str());
-        if( fieldNode.empty() )
+        xml_node fieldNode = node.child(as_wide(fi.name).c_str());
+        if (fieldNode.empty())
             continue;
+
+        ClassTypeInfo* classType = dynamic_cast<ClassTypeInfo*>(arrayType);
+        wstring xmlNodeName;
+        if (!classType)
+        {
+            xmlNodeName = as_wide(arrayType->name());
+        }
 
         int size = 0;
-        for( auto it = fieldNode.children().begin(); it != fieldNode.children().end(); it++ )
+        for (auto it = fieldNode.children().begin(); it != fieldNode.children().end(); it++)
             size++;
 
-        fi.fieldType->SetArraySize( p, size );
+        fieldType.SetArraySize(p, size);
+
         int i = 0;
-        for( auto it = fieldNode.children().begin(); it != fieldNode.children().end(); it++ )
+        for (auto it = fieldNode.children().begin(); it != fieldNode.children().end(); it++)
         {
-            void* pstr2 = fi.fieldType->ArrayElement( p, i );
-            if( !NodeToData( *it, pstr2, *arrayType, true, error ) )
-                return false;
+            void* pstr2 = fieldType.ArrayElement(p, i);
+
+            if (classType)
+            {
+                if (!NodeToData(*it, pstr2, *classType, true, error))
+                    return false;
+            }
+            else
+            {
+                if (it->name() != xmlNodeName)
+                {
+                    error.append(L"Expected xml tag '");
+                    error.append(xmlNodeName);
+                    error.append(L"', but found '");
+                    error.append(it->name());
+                    error.append(L"'");
+                    return false;
+                }
+
+                auto svalue = it->child_value();
+                arrayType->FromString(pstr2, svalue);
+            }
+
             i++;
         }
-    } //for each
+    } // for each
 
     return true;
 }
 
-bool FromXml( void* pclass, CppTypeInfo& type, const wchar_t* xml, wstring& error )
+void lengthToBinaryData(char*& buf, int* len, size_t& t)
+{
+    *len += sizeof(size_t);
+    if (buf) {
+        memcpy(buf, &t, sizeof(size_t));
+        buf += sizeof(size_t);
+    }
+}
+
+//
+//  Serializes class instance to binary buffer.
+//
+//  *buf if non-null - receives encoded buffer
+//  *len - buffer encoded length
+//
+void NodeToBinaryData(char*& buf, int* len, void* pclass, BasicTypeInfo& type)
+{
+    ClassTypeInfo* clstype = dynamic_cast<ClassTypeInfo*>(&type);
+
+    if (!clstype) {
+        // Primitive data type (string, int, bool)
+        size_t s = type.GetFixedSize();
+
+        if (s == 0) {
+            s = type.GetRawSize(pclass);
+            lengthToBinaryData(buf, len, s);
+        }
+        *len += (int)s;
+
+        if (buf) {
+            memcpy(buf, type.GetRawPtr(pclass), s);
+            buf += s;
+        }
+        return;
+    }
+
+    for (FieldInfo& fi : clstype->fields) {
+
+        void* p = ((char*)pclass) + fi.offset;
+        BasicTypeInfo& fieldType = *fi.fieldType;
+        BasicTypeInfo* arrayType = nullptr;
+
+        if (!fieldType.GetArrayElementType(arrayType)) {
+            NodeToBinaryData(buf, len, p, fieldType);
+            continue;
+        }
+
+        size_t size = fieldType.ArraySize(p);
+        lengthToBinaryData(buf, len, size);
+
+        for (size_t i = 0; i < size; i++) {
+            void* pstr2 = fi.fieldType->ArrayElement(p, i);
+            NodeToBinaryData(buf, len, pstr2, *arrayType);
+        }
+    } // for each
+}
+
+//
+//  Serializes class instance to xml node.
+//
+bool BinaryDataToNode(char*& buf, int* left, void* pclass, BasicTypeInfo& type)
+{
+    try {
+        ClassTypeInfo* clstype = dynamic_cast<ClassTypeInfo*>(&type);
+
+        if (!clstype) {
+            // Primitive data type (string, int, bool)
+            size_t s = type.GetFixedSize();
+            size_t l = s;
+
+            if (s == 0) {
+                s = sizeof(size_t);
+                if (*left < (int)s)
+                    return false;
+
+                memcpy(&l, buf, s);
+                buf += s;
+                *left -= (int)s;
+                type.SetRawSize(pclass, l);
+            }
+
+            if (*left < (int)l)
+                return false;
+            memcpy(type.GetRawPtr(pclass), buf, l);
+            buf += l;
+            *left -= (int)l;
+            return true;
+        }
+
+        for (FieldInfo& fi : clstype->fields) {
+
+            void* p = ((char*)pclass) + fi.offset;
+            BasicTypeInfo* arrayType = nullptr;
+            BasicTypeInfo& fieldType = *fi.fieldType;
+
+            if (!fieldType.GetArrayElementType(arrayType)) {
+
+                if (!BinaryDataToNode(buf, left, p, fieldType))
+                    return false;
+
+                continue;
+            }
+
+            size_t s = sizeof(size_t);
+            size_t arrSize = 0;
+            if (*left < (int)s)
+                return false;
+            memcpy(&arrSize, buf, s);
+            *left -= (int)s;
+            buf += s;
+
+            fieldType.SetArraySize(p, arrSize);
+
+            for (size_t i = 0; i < arrSize; i++) {
+                void* pstr2 = fi.fieldType->ArrayElement(p, i);
+
+                if (!BinaryDataToNode(buf, left, pstr2, *arrayType))
+                    return false;
+            }
+
+        } // for each
+    } catch (std::bad_alloc&) {
+        // Either out of memory or incorrectly decoded buffer
+        return false;
+    }
+    return true;
+}
+
+int getEncodedSize(void* pclass, ClassTypeInfo& type)
+{
+    int len = 0;
+    char* buf = nullptr;
+    NodeToBinaryData(buf, &len, pclass, type);
+
+    return len;
+}
+
+void serialize_to_buffer(std::string& buf, void* pclass, ClassTypeInfo& type)
+{
+    buf.resize(getEncodedSize(pclass, type));
+    char* pbuf = (char*)&buf.front();
+    int len = 0;
+    NodeToBinaryData(pbuf, &len, pclass, type);
+}
+
+bool parse_from_buffer(const void* buf, int len, void* pclass, ClassTypeInfo& type)
+{
+    char* pbuf = (char*)buf;
+    int llen = len;
+
+    return BinaryDataToNode(pbuf, &llen, pclass, type);
+}
+
+bool FromXml( void* pclass, ClassTypeInfo& type, const wchar_t* xml, wstring& error )
 {
     xml_document doc2;
 
@@ -223,7 +411,7 @@ bool FromXml( void* pclass, CppTypeInfo& type, const wchar_t* xml, wstring& erro
     return NodeToData( doc2.first_child(), pclass, type, true, error );
 }
 
-bool SaveToXmlFile(const wchar_t* path, void* pclass, CppTypeInfo& type, std::wstring& error)
+bool SaveToXmlFile(const wchar_t* path, void* pclass, ClassTypeInfo& type, std::wstring&)
 {
     xml_document doc;
 
@@ -237,7 +425,7 @@ bool SaveToXmlFile(const wchar_t* path, void* pclass, CppTypeInfo& type, std::ws
     return doc.save_file(path, L"  ", format_indent | format_save_file_text | format_write_bom, encoding_utf8);
 }
 
-std::wstring as_xml(void* pclass, CppTypeInfo& type)
+std::wstring as_xml(void* pclass, ClassTypeInfo& type)
 {
     xml_document doc;
 
@@ -250,7 +438,7 @@ std::wstring as_xml(void* pclass, CppTypeInfo& type)
 }
 
 
-bool LoadFromXmlFile(const wchar_t* path, void* pclass, CppTypeInfo& type, std::wstring& error)
+bool LoadFromXmlFile(const wchar_t* path, void* pclass, ClassTypeInfo& type, std::wstring& error)
 {
     xml_document doc2;
 
@@ -271,7 +459,7 @@ bool LoadFromXmlFile(const wchar_t* path, void* pclass, CppTypeInfo& type, std::
 }
 
 
-ReflectPath::ReflectPath(CppTypeInfo& type, const char* _propertyName)
+ReflectPath::ReflectPath(ClassTypeInfo& type, const char* _propertyName)
 {
     // Doubt that class hierarchy is more complex than 5 levels, but increase this size if it's.
     steps.reserve(5);
@@ -295,7 +483,7 @@ ReflectClass::ReflectClass():
 
 void ReflectClass::ReflectConnectChildren(ReflectClass* parent)
 {
-    CppTypeInfo& typeinfo = GetInstType();
+    ClassTypeInfo& typeinfo = GetInstType();
     char* inst = nullptr;
     int idx = 0;
     

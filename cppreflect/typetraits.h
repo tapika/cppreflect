@@ -7,86 +7,8 @@
 #include <cxxabi.h>                     //__cxa_demangle
 #endif
 
-class CppTypeInfo;
+class ClassTypeInfo;
 class ReflectClass;
-
-//
-//  Base class for performing field conversion to string / from string.
-//
-class TypeTraits
-{
-public:
-    //
-    //  Returns true if field type is primitive (int, string, etc...) - so all types which are not complex.
-    //  Complex class type is derived from ReflectClass - so ReflectClassPtr() & GetType() returns non-null
-    //
-    virtual bool IsPrimitiveType()
-    {
-        return true;
-    }
-
-    virtual std::string name()
-    {
-        return std::string();
-    }
-
-    //
-    //  Gets field complex type()
-    //
-    virtual CppTypeInfo* GetFieldType()
-    {
-        return nullptr;
-    }
-
-    //
-    // Converts instance pointers to ReflectClass*.
-    //
-    virtual ReflectClass* ReflectClassPtr( void* p )
-    {
-        return nullptr;
-    }
-
-    virtual bool GetArrayElementType( CppTypeInfo*& type )
-    {
-        // Not array type
-        return false;
-    }
-
-    //
-    // If GetArrayElementType() returns true, returns size of array.
-    //
-    virtual size_t ArraySize( void* p )
-    {
-        return 0;
-    }
-
-    virtual void SetArraySize( void* p, size_t size )
-    {
-    }
-
-    //
-    //  Gets field (at p) array element at position i.
-    //
-    virtual void* ArrayElement( void* p, size_t i )
-    {
-        return nullptr;     // Invalid operation, since not array
-    }
-
-    //
-    // Converts specific data to String.
-    //
-    // Default implementation: Don't know how to print given field, ignore it
-    //
-    virtual std::wstring ToString( void* pField ) { return std::wstring(); }
-    
-    //
-    // Converts from String to data.
-    //
-    // Default implementation: Value cannot be set from string.
-    //
-    virtual void FromString( void* pField, const wchar_t* value ) { }
-};
-
 
 
 template <class T>
@@ -129,13 +51,13 @@ public:
 };
 
 template<typename T>
-typename std::enable_if<HasGetType<T>::value, CppTypeInfo*>::type CallToGetType(CppTypeInfo*& type)
+typename std::enable_if<HasGetType<T>::value, ClassTypeInfo*>::type CallToGetType(ClassTypeInfo*& type)
 {
     return type = &T::GetType();
 }
 
 template<typename T>
-CppTypeInfo* CallToGetType(...)
+ClassTypeInfo* CallToGetType(...)
 {
     return nullptr;
 }
@@ -148,7 +70,7 @@ CppTypeInfo* CallToGetType(...)
 //  for each supported data type. For more examples - see below.
 //
 template <class T>
-class TypeTraitsT : public TypeTraits
+class BasicTypeInfoT : public BasicTypeInfo
 {
 public:
     virtual bool IsPrimitiveType()
@@ -161,9 +83,9 @@ public:
         return getTypeName<T>();
     }
 
-    CppTypeInfo* GetFieldType()
+    BasicTypeInfo* GetClassType()
     {
-        CppTypeInfo* tinfo = nullptr;
+        ClassTypeInfo* tinfo = nullptr;
         return CallToGetType<T>(tinfo);
     }
 
@@ -189,13 +111,23 @@ public:
         if constexpr (std::is_enum<T>::value)
             StringToEnum(pugi::as_utf8(value).c_str(), *((T*)p));
     }
+
+    virtual size_t GetRawSize(void* pField)
+    {
+        return sizeof(T);
+    }
+
+    virtual size_t GetFixedSize()
+    {
+        return sizeof(T);
+    }
 };
 
 template <>
-class TypeTraitsT<std::wstring> : public TypeTraits
+class BasicTypeInfoT<std::wstring> : public BasicTypeInfo
 {
 public:
-    virtual std::string name() { return "std::wstring"; }
+    virtual std::string name() { return "string"; }
 
     virtual std::wstring ToString(void* pField)
     {
@@ -206,14 +138,34 @@ public:
     {
         *((std::wstring*)pField) = value;
     }
+
+    virtual void* GetRawPtr(void* pField)
+    {
+        return &((std::wstring*)pField)->at(0);
+    }
+
+    virtual size_t GetRawSize(void* pField)
+    {
+        return sizeof(wchar_t) * ((std::wstring*)pField)->length();
+    }
+
+    virtual void SetRawSize(void* pField, size_t size)
+    {
+        ((std::wstring*)pField)->resize(size / sizeof(wchar_t));
+    }
+
+    virtual size_t GetFixedSize()
+    {
+        return 0;
+    }
 };
 
 
 template <>
-class TypeTraitsT<std::string> : public TypeTraits
+class BasicTypeInfoT<std::string> : public BasicTypeInfo
 {
 public:
-    virtual std::string name() { return "std::string"; }
+    virtual std::string name() { return "string"; }
 
     virtual std::wstring ToString(void* pField)
     {
@@ -225,11 +177,31 @@ public:
         auto& s = *((std::string*)pField);
         s = pugi::as_utf8(value);
     }
+
+    virtual void* GetRawPtr(void* pField)
+    {
+        return &((std::string*)pField)->at(0);
+    }
+
+    virtual size_t GetRawSize(void* pField)
+    {
+        return ((std::string*)pField)->length();
+    }
+
+    virtual void SetRawSize(void* pField, size_t size)
+    {
+        ((std::string*)pField)->resize(size);
+    }
+
+    virtual size_t GetFixedSize()
+    {
+        return 0;
+    }
 };
 
 
 template <>
-class TypeTraitsT<int> : public TypeTraits
+class BasicTypeInfoT<int> : public BasicTypeInfo
 {
 public:
     virtual std::string name() { return "int"; }
@@ -256,10 +228,56 @@ public:
         *p = wcstol(value, &pEnd, 10);
         #endif
     }
+
+    virtual size_t GetFixedSize()
+    {
+        return sizeof(int);
+    }
+};
+
+template <typename T>
+class BasicStdTypeInfoT: public BasicTypeInfo
+{
+public:
+    static const wchar_t* fmt;
+    static const char* typeName;
+
+    virtual std::string name()
+    {
+        if (typeName)
+            return typeName;
+
+        return getTypeName<T>();
+    }
+
+    virtual std::wstring ToString(void* pField)
+    {
+        T* p = (T*)pField;
+        auto s = std::to_string(*p);
+        return pugi::as_wide(s.c_str());
+    }
+
+    virtual void FromString(void* pField, const wchar_t* value)
+    {
+        #ifdef _WIN32
+            swscanf_s(value, fmt, pField);
+        #else
+            swscanf(value, fmt, pField);
+        #endif
+    }
+
+    virtual size_t GetFixedSize()
+    {
+        return sizeof(T);
+    }
 };
 
 template <>
-class TypeTraitsT<bool> : public TypeTraits
+class BasicTypeInfoT<int64_t> : public BasicStdTypeInfoT<int64_t> { };
+
+
+template <>
+class BasicTypeInfoT<bool> : public BasicTypeInfo
 {
 public:
     virtual std::string name() { return "bool"; }
@@ -287,6 +305,11 @@ public:
 
         *pb = false;
     }
+
+    virtual size_t GetFixedSize()
+    {
+        return sizeof(bool);
+    }
 };
 
 // Just an example how primitive data types could be redefined. Serialize bool as "True/False" instead of "true/false".
@@ -297,7 +320,7 @@ public:
 };
 
 template <>
-class TypeTraitsT<CamelCaseBool> : public TypeTraitsT<bool>
+class BasicTypeInfoT<CamelCaseBool> : public BasicTypeInfoT<bool>
 {
 public:
     virtual std::string name() { return "CamelCaseBool"; }
@@ -312,20 +335,45 @@ public:
 
     virtual void FromString(void* pField, const wchar_t* value)
     {
-        TypeTraitsT<bool>::FromString(&((CamelCaseBool*)pField)->value, value);
+        BasicTypeInfoT<bool>::FromString(&((CamelCaseBool*)pField)->value, value);
+    }
+
+    virtual size_t GetFixedSize()
+    {
+        return sizeof(CamelCaseBool);
     }
 };
 
 
 template <class E>
-class TypeTraitsT< std::vector<E> > : public TypeTraits
+class BasicTypeInfoT< std::vector<E> > : public BasicTypeInfo
 {
 public:
-    virtual std::string name() { return getTypeName<std::vector<E>>(); }
-    
-    virtual bool GetArrayElementType( CppTypeInfo*& type )
+    std::shared_ptr<BasicTypeInfo> elementType;
+
+    BasicTypeInfoT()
     {
-        type = CallToGetType<E>(type);
+        elementType.reset(new BasicTypeInfoT<E>());
+    }
+
+    virtual std::string name()
+    {
+        return getTypeName<std::vector<E>>();
+    }
+
+    virtual bool GetArrayElementType(BasicTypeInfo*& type)
+    {
+        type = nullptr;
+        ClassTypeInfo* tinfo = nullptr;
+        // If it's complex class type, return it
+        CallToGetType<E>(tinfo);
+        if (tinfo)
+            type = dynamic_cast<BasicTypeInfo*>(tinfo);
+
+        // Otherwise collect type info from element itself.
+        if (type == nullptr)
+            type = elementType.get();
+
         return type != nullptr;
     }
     
@@ -347,9 +395,37 @@ public:
         return &v->at( i );
     }
 
-    virtual std::wstring ToString( void* pField )
+    virtual std::wstring ToString(void*)
     {
         return std::wstring();
+    }
+
+    virtual void* GetRawPtr(void* p)
+    {
+        std::vector<E>* v = (std::vector<E>*)p;
+
+        if (v->empty())
+            return nullptr;
+
+        return &v->at(0);
+    }
+
+    virtual size_t GetRawSize(void* p)
+    {
+        std::vector<E>* v = (std::vector<E>*)p;
+        return sizeof(E) * v->size();
+    }
+
+    virtual void SetRawSize(void* p, size_t size)
+    {
+        std::vector<E>* v = (std::vector<E>*)p;
+        size_t count = size / sizeof(E);
+        v->resize(count);
+    }
+
+    virtual size_t GetFixedSize()
+    {
+        return 0;
     }
 };
 

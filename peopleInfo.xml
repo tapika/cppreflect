@@ -1,8 +1,22 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <People groupName="Group1">
   <people>
-    <Person name="Roger" gender="male" age="37" isAdult="true" />
-    <Person name="Alice" gender="female" age="27" isAdult="true" />
+    <Person name="Roger" gender="male" age="37" isAdult="true">
+      <hobbies>
+        <string>fishing</string>
+        <string>reading books</string>
+      </hobbies>
+    </Person>
+    <Person name="Alice" gender="female" age="27" isAdult="true">
+      <childrenAges>
+        <int>1</int>
+        <int>3</int>
+        <int>5</int>
+      </childrenAges>
+      <hobbies>
+        <string>reading books</string>
+      </hobbies>
+    </Person>
     <Person name="Cindy" gender="female" age="17" isAdult="false" />
   </people>
 </People>

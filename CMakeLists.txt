@@ -8,6 +8,7 @@ add_executable(test_cppreflect
     pugixml/pugixml.hpp
     pugixml/pugixml.natvis
     cppreflect/typetraits.h
+    cppreflect/typetraits.cpp
     cppreflect/macrohelpers.h
     cppreflect/enumreflect.h
     cppreflect/cppreflect.h

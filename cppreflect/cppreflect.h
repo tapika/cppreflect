@@ -1,5 +1,4 @@
 #pragma once
-#include "typetraits.h"
 #include "macrohelpers.h"             //DOFOREACH_SEMICOLON
 #include <memory>                     //shared_ptr
 #include <vector>
@@ -8,14 +7,129 @@
 class FieldInfo;
 class ReflectClass;
 
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
 
-typedef CppTypeInfo& (*pfuncGetClassInfo)();
+class ClassTypeInfo;
+typedef ClassTypeInfo& (*pfuncGetClassInfo)();
 
-class CppTypeInfo
+//
+//  Base class for performing field conversion to string / from string.
+//
+class BasicTypeInfo
 {
 public:
-    static std::map< std::string, pfuncGetClassInfo > classNameToClassInfo;
+    //
+    //  Returns true if field type is primitive (int, string, etc...) - so all types which are not complex.
+    //  Complex class type is derived from ReflectClass - so ReflectClassPtr() & GetType() returns non-null
+    //
+    virtual bool IsPrimitiveType()
+    {
+        return true;
+    }
 
+    virtual std::string name()
+    {
+        return std::string();
+    }
+
+    //
+    //  Gets class type if any
+    //
+    virtual BasicTypeInfo* GetClassType()
+    {
+        return nullptr;
+    }
+
+    //
+    // Converts instance pointers to ReflectClass*.
+    //
+    virtual ReflectClass* ReflectClassPtr(void*)
+    {
+        return nullptr;
+    }
+
+    //
+    // Gets array element type, in case if type is complex (class)
+    //
+    virtual bool GetArrayElementType(BasicTypeInfo*&)
+    {
+        // Not array type
+        return false;
+    }
+
+    //
+    // If GetArrayElementType() returns true, returns size of array.
+    //
+    virtual size_t ArraySize(void*)
+    {
+        return 0;
+    }
+
+    virtual void SetArraySize(void*, size_t)
+    {
+    }
+
+    //
+    //  Gets field (at p) array element at position i.
+    //
+    virtual void* ArrayElement(void*, size_t)
+    {
+        return nullptr; // Invalid operation, since not array
+    }
+
+    //
+    // Converts specific data to String.
+    //
+    // Default implementation: Don't know how to print given field, ignore it
+    //
+    virtual std::wstring ToString(void*)
+    {
+        return std::wstring();
+    }
+
+    //
+    // Converts from String to data.
+    //
+    // Default implementation: Value cannot be set from string.
+    //
+    virtual void FromString(void*, const wchar_t*)
+    {
+    }
+
+    //
+    // Returns raw accessor pointer to field, data
+    //
+    virtual void* GetRawPtr(void* pField)
+    {
+        return pField;
+    }
+
+    //
+    // Returns element size totally so it can be streamed to buffer. For vector it's size of array * size of element.
+    //
+    virtual size_t GetRawSize(void*)
+    {
+        return 0;
+    }
+
+    //
+    // Sets dynamic array size, previously obtained from GetRawSize()
+    //
+    virtual void SetRawSize(void*, size_t)
+    {
+    }
+
+    //
+    // Returns sizeof(type) if type is fixed size, 0 otherwise
+    //
+    virtual size_t GetFixedSize() = 0;
+};
+
+class ClassTypeInfo : public BasicTypeInfo
+{
+public:
     //  Type (class) name
     std::string name;
     std::vector<FieldInfo> fields;
@@ -53,16 +167,22 @@ public:
 };
 
 template <class T>
-class CppTypeInfoT : public CppTypeInfo
+class ClassTypeInfoT : public ClassTypeInfo
 {
     ReflectClass* ReflectCreateInstance()
     {
         return new T;
     }
+
+    virtual size_t GetFixedSize()
+    {
+        return sizeof(T);
+    }
 };
 
+#include "typetraits.h"
 
-class TypeTraits;
+class BasicTypeInfo;
 class FieldInfo
 {
 public:
@@ -80,19 +200,19 @@ public:
 
     int offset;                                     // Field offset within a class instance
     bool serializeAsAttribute;                      // true to serialize as attribute, false as element
-    std::shared_ptr<TypeTraits> fieldType;          // Class for field conversion to string / back from string. We must use 'new' otherwise virtual table does not gets initialized.
+    std::shared_ptr<BasicTypeInfo> fieldType;          // Class for field conversion to string / back from string. We must use 'new' otherwise virtual table does not gets initialized.
 };
 
 
 #define PUSH_FIELD_INFO(x)                                      \
     fi.SetName( ARGNAME_AS_STRING(x) );                         \
     fi.offset = offsetof(_className, ARGNAME(x));               \
-    fi.fieldType.reset(new TypeTraitsT< ARGTYPE(x) >());        \
+    fi.fieldType.reset(new BasicTypeInfoT< ARGTYPE(x) >());        \
     t.fields.push_back(fi);                                     \
 
 /*
 Before using this macro, you must define your own types conversion
-classes, for example see template class TypeTraitsT.
+classes, for example see template class BasicTypeInfoT.
 
 If you get compilation error, then it makes sense to try out first
 without REFLECTABLE define, so you can specify normal C++ field
@@ -112,9 +232,9 @@ fieldType <> fieldName otherwise intellisense might not work.
     /* typedef is accessable from PUSH_FIELD_INFO define */     \
     typedef className _className;                               \
                                                                 \
-    static CppTypeInfo& GetType()                               \
+    static ClassTypeInfo& GetType()                               \
     {                                                           \
-        static CppTypeInfoT<className> t;                       \
+        static ClassTypeInfoT<className> t;                       \
         if( t.name.length() ) return t;                         \
         t.name = classTypeNameInfo.ClassTypeName;               \
         FieldInfo fi;                                           \
@@ -123,8 +243,8 @@ fieldType <> fieldName otherwise intellisense might not work.
         return t;                                               \
     }                                                           \
 
-std::string ToXML_UTF8( void* pclass, CppTypeInfo& type );
-std::wstring ToXML( void* pclass, CppTypeInfo& type );
+std::string ToXML_UTF8( void* pclass, ClassTypeInfo& type );
+std::wstring ToXML( void* pclass, ClassTypeInfo& type );
 
 //
 //  Serializes class instance to xml string.
@@ -132,18 +252,33 @@ std::wstring ToXML( void* pclass, CppTypeInfo& type );
 template <class T>
 std::string ToXML_UTF8( T* pclass )
 {
-    CppTypeInfo& type = T::GetType();
+    ClassTypeInfo& type = T::GetType();
     return ToXML_UTF8(pclass, type);
 }
 
 template <class T>
 std::wstring ToXML( T* pclass )
 {
-    CppTypeInfo& type = T::GetType();
+    ClassTypeInfo& type = T::GetType();
     return ToXML( pclass, type );
 }
 
-bool FromXml( void* pclass, CppTypeInfo& type, const wchar_t* xml, std::wstring& error );
+void NodeToBinaryData(char*& buf, int* len, void* pclass, BasicTypeInfo& type);
+bool BinaryDataToNode(char*& buf, int* left, void* pclass, BasicTypeInfo& type);
+
+//
+//  Queries size of encoded class
+//
+int getEncodedSize(void* pclass, ClassTypeInfo& type);
+
+//
+//  Encodes class to binary buffer
+//  To decode class from binary, use BinaryDataToNode
+//
+void serialize_to_buffer(std::string& buf, void* pclass, ClassTypeInfo& type);
+bool parse_from_buffer(const void* buf, int len, void* pclass, ClassTypeInfo& type);
+
+bool FromXml( void* pclass, ClassTypeInfo& type, const wchar_t* xml, std::wstring& error );
 
 //
 //  Deserializes class instance from xml data. pclass must be valid instance where to fetch data.
@@ -151,13 +286,13 @@ bool FromXml( void* pclass, CppTypeInfo& type, const wchar_t* xml, std::wstring&
 template <class T>
 bool FromXml( T* pclass, const wchar_t* xml, std::wstring& error )
 {
-    CppTypeInfo& type = T::GetType();
+    ClassTypeInfo& type = T::GetType();
     return FromXml(pclass, type, xml, error);
 }
 
-bool LoadFromXmlFile(const wchar_t* path, void* pclass, CppTypeInfo& type, std::wstring& error);
-bool SaveToXmlFile(const wchar_t* path, void* pclass, CppTypeInfo& type, std::wstring& error);
-std::wstring as_xml(void* pclass, CppTypeInfo& type);
+bool LoadFromXmlFile(const wchar_t* path, void* pclass, ClassTypeInfo& type, std::wstring& error);
+bool SaveToXmlFile(const wchar_t* path, void* pclass, ClassTypeInfo& type, std::wstring& error);
+std::wstring as_xml(void* pclass, ClassTypeInfo& type);
 
 class ReflectClass;
 
@@ -180,7 +315,7 @@ public:
     //
     // Type information of instance
     //
-    CppTypeInfo*  typeInfo;
+    ClassTypeInfo*  typeInfo;
 };
 
 
@@ -190,7 +325,7 @@ public:
 class ReflectPath
 {
 public:
-    ReflectPath(CppTypeInfo& type, const char* propertyName);
+    ReflectPath(ClassTypeInfo& type, const char* propertyName);
     
     void Init(ReflectClass* instance);
     
@@ -229,7 +364,7 @@ public:
         return _parent;
     }
 
-    virtual CppTypeInfo& GetInstType() = 0;
+    virtual ClassTypeInfo& GetInstType() = 0;
     virtual void* ReflectGetInstance() = 0;
 
     //  By default set / get property rebroadcats event to parent class
@@ -242,7 +377,7 @@ template <class T>
 class ReflectClassT : public ReflectClass
 {
 public:
-    virtual CppTypeInfo& GetInstType()
+    virtual ClassTypeInfo& GetInstType()
     {
         return T::GetType();
     }
@@ -252,10 +387,13 @@ public:
         return (T*) this;
     }
 
+    virtual size_t GetFixedSize()
+    {
+        return sizeof(T);
+    }
+
     static ReflectClassTypeNameInfo classTypeNameInfo;
 };
 
 template <class T>
-ReflectClassTypeNameInfo ReflectClassT<T>::classTypeNameInfo(
-    &T::GetType, getTypeName<T>()
-);
+ReflectClassTypeNameInfo ReflectClassT<T>::classTypeNameInfo(&T::GetType, getTypeName<T>());
