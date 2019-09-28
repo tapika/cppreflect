@@ -10,6 +10,5 @@ if not exist build mkdir build
 pushd build
 cmake -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=.. ..
 if errorlevel 1 exit /b 1
-rem devenv cppreflect.sln /build "Release|x64"
 cmake --build . --config Release
 popd

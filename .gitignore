@@ -3,3 +3,5 @@ test_cppreflect.ilk
 test_cppreflect.pdb
 build
 
+test_cppreflect
+.vscode

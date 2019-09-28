@@ -1,5 +1,7 @@
 #include "cppreflect/cppreflect.h"
 #include <chrono>
+#define CATCH_CONFIG_MAIN
+#include <catch2/catch.hpp>
 
 using namespace std;
 
@@ -42,9 +44,8 @@ public:
 #define TEST_SET1
 #define TEST_SET2
 
-int main(void) 
+TEST_CASE("doCppReflectionTest")
 {
-#ifdef TEST_SET1
     People ppl;
     ppl.groupName = "Group1";
 
@@ -76,26 +77,20 @@ int main(void)
     ppl.people.push_back(p);
 
     ClassTypeInfo& PeopleType = People::GetType();
-    
-    wstring err;
-    if (!SaveToXmlFile(L"peopleInfo.xml", &ppl, PeopleType, err))
-    {
-        wprintf(L"Error: %ls\n", err.c_str());
-        return 2;
-    }
 
     wstring xml1 = as_xml(&ppl, PeopleType);
+    
+#ifdef TEST_SET1
+    wstring err;
+    REQUIRE(SaveToXmlFile(L"peopleInfo.xml", &ppl, PeopleType, err));
+
     wprintf(L"Serialized:\n%ls\n", xml1.c_str() );
 
     People ppl2;
-    if (!LoadFromXmlFile(L"peopleInfo.xml", &ppl2, PeopleType, err))
-    {
-        wprintf(L"Error: %ls\n", err.c_str());
-        return 2;
-    }
+    REQUIRE(LoadFromXmlFile(L"peopleInfo.xml", &ppl2, PeopleType, err));
+
     wstring xml2 = as_xml(&ppl2, PeopleType);
-    if (xml1 != xml2)
-        printf("serialization/deserialization failed");
+    REQUIRE(xml1 == xml2);
 
     string pplbuf;
     serialize_to_buffer(pplbuf, &ppl2, PeopleType);
@@ -103,8 +98,8 @@ int main(void)
     parse_from_buffer(&pplbuf[0], pplbuf.size(), &ppl3, PeopleType);
 
     wstring xml3 = as_xml(&ppl3, PeopleType);
-    if (xml2 != xml3)
-        printf("serialization/deserialization failed");
+    REQUIRE(xml2 == xml3);
+
 #endif //TEST_SET1
 
     Record r1, r2;
@@ -127,10 +122,17 @@ int main(void)
 
     wstring xr1 = as_xml(&r1, RecordType);
     wstring xr2 = as_xml(&r2, RecordType);
-    if (xr1 != xr2)
-        printf("serialization/deserialization failed");
-
+    
+    REQUIRE(xr1 == xr2);
 #endif 
+
+}
+
+#define TEST_SET1
+#define TEST_SET2
+/*
+int main(void) 
+{
 
     auto start = std::chrono::high_resolution_clock::now();
     const int iterations = 10000;
@@ -148,3 +150,4 @@ int main(void)
     return 0;
 }
 
+*/
