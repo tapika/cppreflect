@@ -10,7 +10,6 @@ Overview
 Initial presentation on how things work:
 
 - C++ Runtime Type Reflection
-https://www.youtube.com/watch?v=TN8tJijkeFE&t=7s (Youtube video)
 https://docs.google.com/presentation/d/1xo0sg10C4DN4iHSD9wqmqZ_99FeVrxI-RcZqxMs_M7Y/edit?usp=sharing (Original presentation slides)
 
 This repository contains C++ reflection library only (no C++ scripting related stuff).
