@@ -7,7 +7,7 @@
 class FieldInfo;
 class ReflectClass;
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__llvm__)
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #endif
 
@@ -130,6 +130,11 @@ public:
     // Gets sizeof(type)
     //
     virtual size_t GetSizeOfType() = 0;
+
+    // Must be, so delete can work safely from shared_ptr
+    virtual ~BasicTypeInfo()
+    {
+    }
 };
 
 class ClassTypeInfo : public BasicTypeInfo
@@ -400,6 +405,10 @@ public:
     void PushPathStep(ReflectPath& path);
     virtual void OnBeforeGetProperty(ReflectPath& path);
     virtual void OnAfterSetProperty(ReflectPath& path);
+
+    virtual ~ReflectClass()
+    {
+    }
 };
 
 template <class T>

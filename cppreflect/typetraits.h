@@ -297,6 +297,12 @@ public:
     }
 };
 
+template <typename T>
+const char* BasicStdTypeInfoT<T>::typeName = nullptr;
+
+template <typename T>
+const wchar_t* BasicStdTypeInfoT<T>::fmt = nullptr;
+
 template <>
 class BasicTypeInfoT<int64_t> : public BasicStdTypeInfoT<int64_t> { };
 
