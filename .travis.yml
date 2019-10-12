@@ -20,5 +20,3 @@ deploy:
   on:
     tags:     true
 
-notifications:
-  email: false

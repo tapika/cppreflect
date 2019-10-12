@@ -7,6 +7,11 @@
 #include <cxxabi.h>                     //__cxa_demangle
 #endif
 
+#if defined(__llvm__)
+#pragma clang diagnostic ignored "-Wundefined-var-template"
+#endif
+
+
 class ClassTypeInfo;
 class ReflectClass;
 
@@ -296,12 +301,6 @@ public:
         return sizeof(T);
     }
 };
-
-template <typename T>
-const char* BasicStdTypeInfoT<T>::typeName = nullptr;
-
-template <typename T>
-const wchar_t* BasicStdTypeInfoT<T>::fmt = nullptr;
 
 template <>
 class BasicTypeInfoT<int64_t> : public BasicStdTypeInfoT<int64_t> { };
